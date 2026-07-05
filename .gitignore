@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite3
+
+# Flask
+instance/
+
+# Virtual Environment
+venv/
+backend/venv/
+
+# Environment Variables
+.env
+
+# Vue / Node
+node_modules/
+frontend/node_modules/
+dist/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
