@@ -1,5 +1,4 @@
 # Python
-
 __pycache__/
 *.py[cod]
 *.db
@@ -16,14 +15,12 @@ backend/venv/
 .env
 
 # Vue / Node
-
 node_modules/
 frontend/node_modules/
 dist/
 frontend/dist/
 
 # Log files
-
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -32,6 +29,11 @@ yarn-error.log*
 .vscode/
 
 # OS Files
-
 .DS_Store
 Thumbs.db
+
+# Redis
+Redis/
+Redis-x64-5.0.14.1/
+MailHog/
+Mail Hog & Redis/

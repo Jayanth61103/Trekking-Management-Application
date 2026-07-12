@@ -1,49 +1,46 @@
-Trekking Management Application
+# Trekking Management System (TMS)
 
-# Install Required Packages for Backend
-Step:1 Need to create a Virtual Environment (venv)
-Step:2 Activate Virtual Environment (venv)
-step:3 Install Packages (flask, flask_restful, flask_sqlalchemy,  )
-step:4 Add Packages Required to requirements.txt
+The Trekking Management System (TMS) is a full-stack web application developed as part of the **IIT Madras Modern Application Development II (MAD 2)** course.
 
+The application provides a role-based portal for:
 
-'''bash 
-python -m venv venv 
+- Admin
+- Staff
+- Trekker
 
-.\venv\Scripts\activate # Windows 
-source .\venv\bin\activate # Linux & Mac 
+using Flask REST APIs as the backend and Vue.js as the frontend.
 
-pip install flask flask_restful flask_sqlalchemy  flask_jwt_extended # Packages
+---
 
-pip install -r backend_requirements.txt # to download packages from backend requirements.
+# Prerequisites
 
-pip freeze > backend_requirements.txt # Update the package requirements for backend 
-'''
+Ensure the following software is installed before running the application:
 
-# Install Required Packages for Frontend (vue.js)
+- Python 3.x
+- Node.js (LTS)
+- npm
+- Git
+- Redis
+- VS Code (Recommended)
 
-'''bash
-npm install  # To download packages for frontend 
-'''# Trekking Management System (TMS)
+Verify installation:
 
-A full-stack web application developed as part of the IIT Madras Modern Application Development II (MAD 2) course.
+```bash
+python --version
+node --version
+npm --version
+git --version
+```
 
-## Tech Stack
+---
 
-### Backend
-- Python
-- Flask
-- Flask RESTful
-- Flask SQLAlchemy
-- Flask JWT Extended
-- Flask CORS
-- SQLite
+# Clone Repository
 
-### Frontend
-- Vue.js 3
-- Vue Router
-- Axios
-- Vite
+```bash
+git clone <repository-url>
+
+cd Trekking-Management-System
+```
 
 ---
 
@@ -101,6 +98,76 @@ Backend runs at:
 http://127.0.0.1:5000
 ```
 
+If the backend starts successfully, the terminal should display:
+
+```
+Default Admin Created Successfully.
+```
+
+or
+
+```
+Default Admin Already Exists.
+```
+
+---
+
+# Redis Setup (Required for JWT Blacklisting)
+
+Redis is used to store revoked JWT tokens after user logout.
+
+> **Note:** Redis binaries are not included in this repository. Install Redis separately or use the Redis package provided by the course instructor.
+
+## Step 1: Start Redis Server
+
+Open a new terminal.
+
+Navigate to your Redis installation directory.
+
+```bash
+cd <Redis Installation Folder>
+```
+
+### Windows
+
+```bash
+.\redis-server.exe
+```
+
+### Linux / macOS
+
+```bash
+redis-server
+```
+
+Leave this terminal running.
+
+---
+
+## Step 2: Verify Redis Connection
+
+Open another terminal.
+
+### Windows
+
+```bash
+.\redis-cli.exe ping
+```
+
+### Linux / macOS
+
+```bash
+redis-cli ping
+```
+
+Expected Output
+
+```
+PONG
+```
+
+Redis is now ready for the Flask Backend.
+
 ---
 
 # Frontend Setup
@@ -131,6 +198,54 @@ http://localhost:5173
 
 ---
 
+# Running the Complete Application
+
+Open **three terminals**.
+
+### Terminal 1
+
+Run Backend
+
+```bash
+cd backend
+
+.\venv\Scripts\activate
+
+python app.py
+```
+
+---
+
+### Terminal 2
+
+Run Redis
+
+```bash
+redis-server
+```
+
+or
+
+```bash
+.\redis-server.exe
+```
+
+---
+
+### Terminal 3
+
+Run Frontend
+
+```bash
+cd frontend
+
+npm install
+
+npm run dev
+```
+
+---
+
 # Default Admin Account
 
 The application automatically creates a default administrator if one does not already exist.
@@ -145,41 +260,83 @@ The application automatically creates a default administrator if one does not al
 
 # Features
 
+### Authentication
+
 - User Registration
 - User Login
 - JWT Authentication
+- JWT Token Blacklisting
 - Role-Based Authentication
-- Admin User Creation
-- User Profile API
-- Trekker, Staff and Admin Roles
+
+### Admin
+
+- Automatic Default Admin Creation
+- Create Staff
+- Role Based Access
+
+### Profile
+
+- View Profile
+- Update Profile
+- Change Password
+
+### Frontend
+
+- Vue Router
+- Axios Integration
+- Responsive User Interface
 
 ---
 
-# Project Structure
+# Tech Stack
+
+## Backend
+
+- Python
+- Flask
+- Flask RESTful
+- Flask SQLAlchemy
+- Flask JWT Extended
+- Flask CORS
+- SQLite
+- Redis
+
+## Frontend
+
+- Vue.js 3
+- Vue Router
+- Axios
+- Vite
+
+---
+
+# Configuration
+
+Current configuration is available in:
 
 ```
-backend/
-    apis/
-    app.py
-    models.py
-    backend_requirements.txt
-
-frontend/
-    src/
-    public/
-    package.json
-    vite.config.js
+backend/app.py
 ```
+
+Update when required:
+
+- JWT_SECRET_KEY
+- SQLAlchemy Database URI
+- Redis Configuration
 
 ---
 
 # Git Ignore
 
-The following folders are ignored:
+The following folders/files are ignored:
 
 - backend/venv
 - frontend/node_modules
 - __pycache__
 - .vscode
+- .env
+- *.sqlite3
+- *.db
+- instance/
 
 ---

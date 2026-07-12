@@ -63,7 +63,7 @@
 
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import api from "../services/api";
+import { register } from "../../services/auth";
 
 const router = useRouter();
 
@@ -77,14 +77,13 @@ const message = ref("");
 
 async function registerUser() {
     try {
-        const response = await api.post("/register", {
-
-            full_name: full_name.value,
-            username: username.value,
-            email: email.value,
-            phone: phone.value,
-            password: password.value
-        });
+         const response = await register({
+             full_name: full_name.value,
+             username: username.value,
+             email: email.value,
+             phone: phone.value,
+             password: password.value
+          });
         message.value = response.data.message;
         setTimeout(() => {
             router.push("/login");
