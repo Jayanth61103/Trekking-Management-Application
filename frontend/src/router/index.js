@@ -5,12 +5,12 @@ import AuthLayout from "../layouts/AuthLayout.vue";
 import MainLayout from "../layouts/MainLayout.vue";
 
 // Public Views
-import HomeView from "../views/HomeView.vue";
-import LoginView from "../views/LoginView.vue";
-import RegisterView from "../views/RegisterView.vue";
+import HomeView from "../views/common/HomeView.vue";
+import LoginView from "../views/auth/LoginView.vue";
+import RegisterView from "../views/auth/RegisterView.vue";
 
 // Shared Views
-import ProfileView from "../views/ProfileView.vue";
+import ProfileView from "../views/common/ProfileView.vue";
 
 // Admin Views
 import AdminDashboard from "../views/admin/AdminDashboard.vue";

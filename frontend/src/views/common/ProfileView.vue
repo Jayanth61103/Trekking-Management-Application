@@ -8,8 +8,8 @@
 </template>
 
 <script setup>
-import ProfileForm from "../components/profile/ProfileForm.vue"
-import ChangePasswordForm from "../components/profile/ChangePasswordForm.vue"
+import ProfileForm from "../../components/profile/ProfileForm.vue";
+import ChangePasswordForm from "../../components/profile/ChangePasswordForm.vue";
 </script>
 
 <style scoped>

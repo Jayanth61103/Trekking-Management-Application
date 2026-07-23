@@ -170,6 +170,66 @@ Redis is now ready for the Flask Backend.
 
 ---
 
+# MailHog Setup (Required for Email Testing)
+
+MailHog is used as a local SMTP server for development. All emails sent by the application are captured locally and can be viewed through the MailHog web interface without sending real emails.
+
+> **Note:** MailHog binaries are not included in this repository. Install MailHog separately or use the MailHog package provided by the course instructor.
+
+## Step 1: Start MailHog
+
+Open a new terminal.
+
+Navigate to the MailHog installation directory.
+
+```bash
+cd <MailHog Installation Folder>
+```
+
+### Windows
+
+```bash
+.\MailHog.exe
+```
+
+### Linux / macOS
+
+```bash
+MailHog
+```
+
+Leave this terminal running.
+
+---
+
+## Step 2: Open the MailHog Web Interface
+
+Open your browser and navigate to:
+
+```
+http://localhost:8025
+```
+
+If MailHog starts successfully, the inbox page will be displayed.
+
+---
+
+## Step 3: Verify Email Delivery
+
+After creating a new Staff account from the Admin Portal:
+
+- A welcome email will be sent automatically.
+- Open the MailHog Web Interface.
+- Verify that the welcome email appears in the inbox.
+
+If emails are not received:
+
+- Ensure MailHog is running.
+- Verify the SMTP configuration in `backend/utils/mail.py`.
+- Check the Flask backend terminal for email-related errors.
+
+---
+
 # Frontend Setup
 
 ## Step 1: Navigate to frontend

@@ -2,7 +2,8 @@ from datetime import timedelta
 
 from flask import Flask
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
+
+from extensions import db, jwt, mail
 
 # Database Models
 from models import db, User, UserRole
@@ -20,38 +21,43 @@ from redis_client import redis_client
 app = Flask(__name__)
 
 # CORS Configuration
-# Allows Vue Frontend to access Flask APIs
 CORS(
     app,
     origins=["http://localhost:5173"],
     supports_credentials=True
 )
 
-# JWT Configuration
-app.config["JWT_SECRET_KEY"] = "trekking_management_application_secret_key_2026"
-
-# JWT expires after 1 hour
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
-
-jwt = JWTManager(app)
-
-# JWT Blacklist Checker
-# Runs automatically for every @jwt_required()
-@jwt.token_in_blocklist_loader
-def check_if_token_revoked(jwt_header, jwt_payload):
-
-    jti = jwt_payload["jti"]
-
-    # Returns True if token exists in Redis blacklist
-    return redis_client.exists(jti)
-
 # Database Configuration
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-db.init_app(app)
+# JWT Configuration
 
-# Register Blueprints
+app.config["JWT_SECRET_KEY"] = "trekking_management_application_secret_key_2026"
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+
+
+# MailHog Configuration
+app.config["MAIL_SERVER"] = "localhost"
+app.config["MAIL_PORT"] = 1025
+app.config["MAIL_USE_TLS"] = False
+app.config["MAIL_USE_SSL"] = False
+app.config["MAIL_USERNAME"] = None
+app.config["MAIL_PASSWORD"] = None
+app.config["MAIL_DEFAULT_SENDER"] = "admin@trekmate.com"
+
+# Initialize Extensions
+db.init_app(app)
+jwt.init_app(app)
+mail.init_app(app)
+
+# JWT Blacklist Checker
+@jwt.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header, jwt_payload):
+    jti = jwt_payload["jti"]
+    return redis_client.exists(jti)
+
+# Register API Blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(staff_bp)
@@ -63,7 +69,6 @@ def create_default_admin():
     admin = User.query.filter_by(role=UserRole.ADMIN).first()
 
     if admin:
-
         print("Default Admin Already Exists.")
         return
 
@@ -71,15 +76,13 @@ def create_default_admin():
         full_name="System Administrator",
         username="admin",
         email="admin@trek.com",
-        password="Admin@123",      # Replace with hashed password later
+        password="Admin@123",     # Replace with hashed password later
         phone="9999999999",
         role=UserRole.ADMIN,
         is_active=True
     )
-
     db.session.add(default_admin)
     db.session.commit()
-
     print("Default Admin Created Successfully.")
 
 # Initialize Database

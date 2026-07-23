@@ -1,12 +1,20 @@
 import api from "./api";
 
-export function getStaffProfile() {
-    return api.get("/staff/profile");
+// Create Staff
+export function createStaff(staffData) {
+    return api.post("/admin/create-staff", staffData);
 }
 
-export function getStaffDashboard() {
-    return api.get("/staff/dashboard");
+// Future Admin APIs
+export function getAllStaff() {
+    return api.get("/admin/staff");
 }
-export function createStaff(data) {
-    return api.post("/admin/create-staff", data);
+export function getStaffDetails(staffUUID) {
+    return api.get(`/admin/staff/${staffUUID}`);
+}
+export function updateStaff(staffUUID, staffData) {
+    return api.put(`/admin/staff/${staffUUID}`, staffData);
+}
+export function deleteStaff(staffUUID) {
+    return api.delete(`/admin/staff/${staffUUID}`);
 }

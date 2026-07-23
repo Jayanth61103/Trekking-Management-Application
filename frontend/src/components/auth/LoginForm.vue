@@ -1,29 +1,31 @@
 <template>
-<div class="login-container">
-    <h2>Login</h2>
-    <form @submit.prevent="loginUser">
-        <div class="form-group">
-            <label>Email</label>
-            <input
-                type="email"
-                v-model="email"
-                required
-            >
-        </div>
-        <div class="form-group">
-            <label>Password</label>
-            <input
-                type="password"
-                v-model="password"
-                required
-            >
-        </div>
-        <button type="submit">
-            Login
-        </button>
-    </form>
-    <p>{{ message }}</p>
-</div>
+    <div class="login-container">
+        <h2>Login</h2>
+        <form @submit.prevent="loginUser">
+            <div class="form-group">
+                <label>Email</label>
+                <input
+                    type="email"
+                    v-model="email"
+                    required
+                />
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input
+                    type="password"
+                    v-model="password"
+                    required
+                />
+            </div>
+            <button type="submit">
+                Login
+            </button>
+        </form>
+        <p class="message">
+            {{ message }}
+        </p>
+    </div>
 </template>
 
 <script setup>
@@ -39,33 +41,23 @@ const message = ref("");
 
 async function loginUser() {
     message.value = "";
-
     try {
         const response = await login({
-           email: email.value,
-           password: password.value
+            email: email.value,
+            password: password.value
         });
-
-        const user = response.data.user;
-        if (!user || !response.data.access_token) {
+        const { access_token, user, message: successMessage } = response.data;
+        if (!access_token || !user) {
             message.value = "Invalid response from server.";
             return;
         }
+        message.value = successMessage;
 
-        // Clear previous session
-        localStorage.clear();
+        // Clear Form
+        email.value = "";
+        password.value = "";
 
-        // Store JWT
-        localStorage.setItem("access_token", response.data.access_token);
-
-        // Store User Details
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("user_id", user.id);
-        localStorage.setItem("role", user.role);
-        localStorage.setItem("email", user.email);
-
-        message.value = response.data.message;
-
+        // Redirect According to Role
         switch (user.role) {
             case "Admin":
                 router.push("/admin/dashboard");
@@ -81,15 +73,9 @@ async function loginUser() {
         }
     }
     catch (error) {
-        if (error.response) {
-            message.value = error.response.data.message;
-        }
-        else if (error.request) {
-            message.value = "Unable to connect to server.";
-        }
-        else {
-            message.value = "Something went wrong.";
-        }
+        message.value =
+            error.response?.data?.message ||
+            "Unable to connect to server.";
     }
 }
 </script>
@@ -108,9 +94,16 @@ async function loginUser() {
 input{
     width:100%;
     padding:10px;
+    box-sizing:border-box;
 }
 button{
     width:100%;
     padding:10px;
+    cursor:pointer;
+}
+.message{
+    margin-top:15px;
+    text-align:center;
+    color:#d32f2f;
 }
 </style>

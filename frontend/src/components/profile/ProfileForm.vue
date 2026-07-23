@@ -1,14 +1,14 @@
 <template>
     <div class="profile-container">
         <h2>My Profile</h2>
-        <form @submit.prevent="updateProfile">
+        <form @submit.prevent="saveProfile">
             <div class="form-group">
                 <label>Full Name</label>
                 <input
                     type="text"
                     v-model="full_name"
                     required
-                >
+                />
             </div>
             <div class="form-group">
                 <label>Username</label>
@@ -16,23 +16,25 @@
                     type="text"
                     v-model="username"
                     required
-                >
+                />
             </div>
             <div class="form-group">
                 <label>Email</label>
+
                 <input
                     type="email"
                     v-model="email"
                     required
-                >
+                />
             </div>
             <div class="form-group">
-                <label>Phone</label>
+                <label>Phone Number</label>
                 <input
-                    type="text"
+                    type="tel"
+                    maxlength="10"
                     v-model="phone"
                     required
-                >
+                />
             </div>
             <div class="form-group">
                 <label>Role</label>
@@ -40,60 +42,88 @@
                     type="text"
                     v-model="role"
                     disabled
-                >
+                />
             </div>
             <button type="submit">
                 Save Changes
             </button>
         </form>
-        <p>{{ message }}</p>
+        <p class="message">
+            {{ message }}
+        </p>
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"
-import api from "../../services/api"
+import { ref, onMounted } from "vue";
+import {
+    getProfile,
+    updateProfile
+} from "../../services/auth";
 
-const full_name = ref("")
-const username = ref("")
-const email = ref("")
-const phone = ref("")
-const role = ref("")
+// Reactive Variables
+const full_name = ref("");
+const username = ref("");
+const email = ref("");
+const phone = ref("");
+const role = ref("");
 
-const message = ref("")
+const message = ref("");
 
-onMounted(async () => {
+// Load Profile
+async function loadProfile() {
+    message.value = "";
     try {
-        const response = await api.get("/profile")
+        const { data } = await getProfile();
+        const user = data.user;
 
-        full_name.value = response.data.full_name
-        username.value = response.data.username
-        email.value = response.data.email
-        phone.value = response.data.phone
-        role.value = response.data.role
+        full_name.value = user.full_name;
+        username.value = user.username;
+        email.value = user.email;
+        phone.value = user.phone;
+        role.value = user.role;
     }
-    catch {
-        message.value = "Unable to load profile."
+    catch (error) {
+        message.value =
+            error.response?.data?.message ||
+            "Unable to load profile.";
     }
-})
-async function updateProfile(){
-    try{
-        const response = await api.put("/profile",{
+}
+onMounted(loadProfile);
+
+// Save Profile
+async function saveProfile() {
+    message.value = "";
+    if (phone.value.length !== 10 || !/^\d+$/.test(phone.value)) {
+        message.value = "Phone number must contain exactly 10 digits.";
+        return;
+    }
+    try {
+        const { data } = await updateProfile({
 
             full_name: full_name.value,
             username: username.value,
             email: email.value,
             phone: phone.value
-        })
-        message.value = response.data.message
+        });
+        message.value = data.message;
+
+        // Update Local Storage
+        localStorage.setItem(
+            "user",
+            JSON.stringify(data.user)
+        );
+        localStorage.setItem(
+            "role",
+            data.user.role
+        );
+        localStorage.setItem(
+            "username",
+            data.user.username
+        );
     }
-    catch(error){
-        if(error.response){
-            message.value = error.response.data.message
-        }
-        else{
-            message.value = "Unable to connect to server."
-        }
+    catch (error) {
+        message.value = error.response?.data?.message ||"Unable to connect to server.";
     }
 }
 </script>
@@ -101,27 +131,32 @@ async function updateProfile(){
 <style scoped>
 .profile-container{
     width:500px;
-    margin:auto;
+    margin:50px auto;
     padding:30px;
+    border:1px solid #dddddd;
+    border-radius:8px;
 }
 .form-group{
-    margin-bottom:15px;
+    margin-bottom:18px;
 }
 label{
     display:block;
-    margin-bottom:5px;
+    margin-bottom:6px;
+    font-weight:bold;
 }
 input{
     width:100%;
     padding:10px;
+    box-sizing:border-box;
 }
 button{
     width:100%;
     padding:10px;
     cursor:pointer;
 }
-p{
+.message{
     margin-top:20px;
-    color:green;
+    text-align:center;
+    color:#2E7D32;
 }
 </style>

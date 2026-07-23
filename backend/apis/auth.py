@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from models import db, User, UserRole
+from models import db, User, UserRole, Trekker
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, get_jwt
 
 from datetime import datetime, timezone
@@ -9,74 +9,86 @@ from redis_client import redis_client
 auth_bp = Blueprint("auth", __name__)
 
 # Registeration 
+# User Registration
 @auth_bp.route("/register", methods=["POST"])
 def register():
 
-    # Read JSON data sent from frontend
+    # Read JSON data from frontend
     data = request.get_json()
 
-    # Extract fields
+    # Extract User Details
     full_name = data.get("full_name")
     username = data.get("username")
     email = data.get("email")
     password = data.get("password")
     phone = data.get("phone")
 
-    # Default every new user as Trekker
-    role = UserRole.TREKKER
-
-    # Validate required fields
-    if not full_name or not username or not email or not phone or not password:
+    # Validate Required Fields
+    if not all([full_name, username, email, phone, password]):
         return jsonify({
-            "message": "Full name, username, email and password are required."
+            "message": "Full name, username, email, phone number and password are required."
         }), 400
-    
-    # Checks whether phone number has exactly 10 digits
+
+    # Validate Phone Number
     if len(phone) != 10 or not phone.isdigit():
         return jsonify({
             "message": "Phone number must contain exactly 10 digits."
-    }), 400
+        }), 400
 
-    # Check duplicate username
-    existing_username = User.query.filter_by(username=username).first()
-
-    if existing_username:
+    # Check Duplicate Username
+    if User.query.filter_by(username=username).first():
         return jsonify({
             "message": "Username already exists."
         }), 409
 
-    # Check duplicate email
-    existing_email = User.query.filter_by(email=email).first()
-
-    if existing_email:
+    # Check Duplicate Email
+    if User.query.filter_by(email=email).first():
         return jsonify({
             "message": "Email already registered."
         }), 409
-    
-    # Check duplicate Phone Number
-    existing_phone = User.query.filter_by(phone=phone).first()
 
-    if existing_phone:
+    # Check Duplicate Phone Number
+    if User.query.filter_by(phone=phone).first():
         return jsonify({
             "message": "Phone number already registered."
-    }), 409
-
-    # Create User object
-    new_user = User(
-        full_name=full_name,
-        username=username,
-        email=email,
-        password=password, 
-        phone=phone,
-        role=UserRole.TREKKER
-    )
+        }), 409
 
     try:
+        # Create User
+        new_user = User(
+            full_name=full_name,
+            username=username,
+            email=email,
+            password=password,          # Later replace with hashed password
+            phone=phone,
+            role=UserRole.TREKKER
+        )
+
+        # Add User to Session
         db.session.add(new_user)
+
+        # Generate User ID without committing
+        db.session.flush()
+
+        # Automatically Create Trekker Profile
+        new_trekker = Trekker(
+            user_id=new_user.id
+        )
+
+        # Add Trekker Profile
+        db.session.add(new_trekker)
+
+        # Save Everything
         db.session.commit()
 
         return jsonify({
-            "message": "User registered successfully."
+            "message": "User registered successfully.",
+            "user": {
+                "user_uuid": new_user.user_uuid,
+                "username": new_user.username,
+                "email": new_user.email,
+                "role": new_user.role.value
+            }
         }), 201
 
     except Exception as e:
@@ -91,16 +103,20 @@ def register():
 @auth_bp.route("/login", methods=["POST"])
 def login():
 
+    # Read JSON data from frontend
     data = request.get_json()
 
+    # Extract Login Details
     email = data.get("email")
     password = data.get("password")
 
+    # Validate Required Fields
     if not email or not password:
         return jsonify({
             "message": "Email and Password are required."
         }), 400
 
+    # Check whether User exists
     user = User.query.filter_by(email=email).first()
 
     if not user:
@@ -108,65 +124,76 @@ def login():
             "message": "User not found."
         }), 404
 
+    # Verify Password
     if user.password != password:
         return jsonify({
             "message": "Invalid Password."
         }), 401
-    
-    # Password is correct
-    access_token = create_access_token(
-       identity=str(user.id),
-       additional_claims={
-         "username": user.username,
-         "role": user.role.value
-        }
-    )
 
-    return jsonify({
-        "message": "Login Successful",
-        "access_token": access_token, # Creates a JWT when registered user log-in 
-        "user":{
-            "id":user.id,
-            "username":user.username,
-            "email":user.email,
-            "role":user.role.value
-        }
-    }), 200
+    try:
 
-# Checks profile with the JWT generated when logged-in
+        # Update Last Login Time
+        user.last_login = datetime.utcnow()
+        db.session.commit()
+
+        # Generate JWT Token
+        access_token = create_access_token(
+            identity=str(user.id),
+            additional_claims={
+                "username": user.username,
+                "role": user.role.value
+            }
+        )
+
+        # Return Success Response
+        return jsonify({
+            "message": "Login Successful.",
+            "access_token": access_token,
+            "user": {
+                "user_uuid": user.user_uuid,
+                "full_name": user.full_name,
+                "username": user.username,
+                "email": user.email,
+                "phone": user.phone,
+                "role": user.role.value
+            }
+        }), 200
+
+    except Exception as e:
+
+        db.session.rollback()
+
+        return jsonify({
+            "message": "Login failed.",
+            "error": str(e)
+        }), 500
+
+# Fetches Profile Details  
 @auth_bp.route("/profile", methods=["GET"])
 @jwt_required()
-def profile():
-    try:
-        # Get User ID from JWT
-        user_id = get_jwt_identity()
+def get_profile():
 
-        # Fetch User from Database
-        user = db.session.get(User, int(user_id))
+    user_id = get_jwt_identity()
 
-        # Check whether user exists
-        if not user:
-            return jsonify({
-                "message": "User not found."
-            }), 404
+    user = db.session.get(User, int(user_id))
 
-        # Return User Details
+    if not user:
         return jsonify({
-            "id": user.id,
+            "message": "User not found."
+        }), 404
+
+    return jsonify({
+        "user": {
+            "user_uuid": user.user_uuid,
             "full_name": user.full_name,
             "username": user.username,
             "email": user.email,
             "phone": user.phone,
             "role": user.role.value,
-            "is_active": user.is_active
-
-        }), 200
-
-    except Exception as e:
-        return jsonify({
-            "message": "Failed to fetch user profile.",
-            "error": str(e)
-        }), 500
+            "email_verified": user.email_verified,
+            "phone_verified": user.phone_verified
+        }
+    }), 200
 
 # Update Profile Details
 @auth_bp.route("/profile", methods=["PUT"])
@@ -175,10 +202,9 @@ def update_profile():
 
     try:
 
-        # Get Logged-in User ID
+        # Get Logged-in User
         user_id = get_jwt_identity()
 
-        # Fetch User
         user = db.session.get(User, int(user_id))
 
         if not user:
@@ -186,7 +212,7 @@ def update_profile():
                 "message": "User not found."
             }), 404
 
-        # Read JSON
+        # Read JSON Data
         data = request.get_json()
 
         full_name = data.get("full_name")
@@ -194,19 +220,19 @@ def update_profile():
         email = data.get("email")
         phone = data.get("phone")
 
-        # Required Field Validation
-        if not full_name or not username or not email or not phone:
+        # Validate Required Fields
+        if not all([full_name, username, email, phone]):
             return jsonify({
                 "message": "All fields are required."
             }), 400
 
-        # Phone Validation
+        # Validate Phone Number
         if len(phone) != 10 or not phone.isdigit():
             return jsonify({
                 "message": "Phone number must contain exactly 10 digits."
             }), 400
 
-        # Username Validation
+        # Check Duplicate Username
         existing_username = User.query.filter(
             User.username == username,
             User.id != user.id
@@ -217,7 +243,7 @@ def update_profile():
                 "message": "Username already exists."
             }), 409
 
-        # Email Validation
+        # Check Duplicate Email
         existing_email = User.query.filter(
             User.email == email,
             User.id != user.id
@@ -228,7 +254,7 @@ def update_profile():
                 "message": "Email already registered."
             }), 409
 
-        # Phone Validation
+        # Check Duplicate Phone Number
         existing_phone = User.query.filter(
             User.phone == phone,
             User.id != user.id
@@ -239,22 +265,38 @@ def update_profile():
                 "message": "Phone number already registered."
             }), 409
 
-        # Update Details
+        # Check whether Email or Phone changed
+        email_changed = (user.email != email)
+        phone_changed = (user.phone != phone)
+
+        # Update User Details
         user.full_name = full_name
         user.username = username
         user.email = email
         user.phone = phone
 
-        db.session.commit()
+        # Reset Verification Status
+        if email_changed:
+            user.email_verified = False
 
+        if phone_changed:
+            user.phone_verified = False
+
+        db.session.commit()
         return jsonify({
-            "message": "Profile updated successfully."
+            "message": "Profile updated successfully.",
+            "user": {
+                "user_uuid": user.user_uuid,
+                "full_name": user.full_name,
+                "username": user.username,
+                "email": user.email,
+                "phone": user.phone,
+                "role": user.role.value
+            }
         }), 200
 
     except Exception as e:
-
         db.session.rollback()
-
         return jsonify({
             "message": "Failed to update profile.",
             "error": str(e)
@@ -332,24 +374,31 @@ def change_password():
 @jwt_required()
 def logout():
 
-    # Current JWT information
-    jwt_data = get_jwt()
+    try:
+        # Get Current JWT
+        jwt_data = get_jwt()
 
-    # Unique Token ID
-    jti = jwt_data["jti"]
+        # Unique Token Identifier
+        jti = jwt_data["jti"]
 
-    # Expiration Time
-    exp = jwt_data["exp"]
+        # Token Expiration Time
+        exp = jwt_data["exp"]
 
-    # Current UTC Time
-    now = datetime.now(timezone.utc).timestamp()
+        # Current UTC Time
+        now = datetime.now(timezone.utc).timestamp()
 
-    # Remaining lifetime of the token
-    expires_in = max(int(exp - now), 1)
+        # Remaining Token Lifetime
+        expires_in = max(int(exp - now), 1)
 
-    # Store token ID in Redis until it naturally expires
-    redis_client.setex(jti, expires_in, "revoked")
+        # Store Revoked Token in Redis
+        redis_client.setex(jti, expires_in, "revoked")
 
-    return jsonify({
-        "message": "Logout Successful. Token Revoked."
-    }), 200
+        return jsonify({
+            "message": "Logout successful. Token revoked."
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "message": "Logout failed.",
+            "error": str(e)
+        }), 500

@@ -76,26 +76,34 @@ const password = ref("");
 const message = ref("");
 
 async function registerUser() {
+
+    message.value = "";
     try {
-         const response = await register({
-             full_name: full_name.value,
-             username: username.value,
-             email: email.value,
-             phone: phone.value,
-             password: password.value
-          });
-        message.value = response.data.message;
+        const { data } = await register({
+            full_name: full_name.value,
+            username: username.value,
+            email: email.value,
+            phone: phone.value,
+            password: password.value
+        });
+        message.value = data.message;
+
+        // Clear Form
+        full_name.value = "";
+        username.value = "";
+        email.value = "";
+        phone.value = "";
+        password.value = "";
+
+        // Redirect to Login
         setTimeout(() => {
             router.push("/login");
-        }, 1000);
+        }, 1500);
     }
-    catch(error){
-        if(error.response){
-            message.value = error.response.data.message;
-        }
-        else{
-            message.value = "Unable to connect to server.";
-        }
+    catch (error) {
+        message.value =
+            error.response?.data?.message ||
+            "Unable to connect to server.";
     }
 }
 </script>
