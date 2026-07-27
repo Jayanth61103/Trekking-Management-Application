@@ -59,9 +59,9 @@ def check_if_token_revoked(jwt_header, jwt_payload):
 
 # Register API Blueprints
 app.register_blueprint(auth_bp)
-app.register_blueprint(admin_bp)
-app.register_blueprint(staff_bp)
-app.register_blueprint(trekker_bp)
+app.register_blueprint(admin_bp, url_prefix="/admin")
+app.register_blueprint(staff_bp, url_prefix="/staff")
+app.register_blueprint(trekker_bp, url_prefix="/trekker")
 
 # Create Default Admin
 def create_default_admin():

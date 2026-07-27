@@ -1,19 +1,25 @@
 <template>
     <nav class="dashboard-navbar">
-
-        <div class="logo">
-            <RouterLink to="/">
-                Trekmate
-            </RouterLink>
+        <!-- Logo -->
+        <div class="brand" @click="goToDashboard">
+            Trekmate
         </div>
-
-        <div class="dashboard-links">
-            <RouterLink to="/profile">
-                Profile
-            </RouterLink>
-
+        <!-- Navigation -->
+        <div class="nav-links">
             <button
-                class="logout-btn"
+                class="nav-link"
+                @click="goToDashboard"
+            >
+                Dashboard
+            </button>
+            <button
+                class="nav-link"
+                @click="goToProfile"
+            >
+                Profile
+            </button>
+            <button
+                class="logout-button"
                 @click="handleLogout"
             >
                 Logout
@@ -23,51 +29,84 @@
 </template>
 
 <script setup>
-import { RouterLink, useRouter } from "vue-router";
-import { logout } from "../../services/auth";
+import { useRouter } from "vue-router"
+import { logout } from "../../services/auth"
 
-const router = useRouter();
+const router = useRouter()
 
+// Dashboard Navigation
+function goToDashboard() {
+
+    const role = localStorage.getItem("role")
+    if (role === "Admin") {
+        router.push("/admin/dashboard")
+    }
+    else if (role === "Staff") {
+        router.push("/staff/dashboard")
+    }
+    else if (role === "Trekker") {
+        router.push("/trekker/dashboard")
+    }
+}
+// Profile Navigation
+function goToProfile() {
+    router.push("/profile")
+}
+
+// Logout
 async function handleLogout() {
-    await logout();
-    router.push("/login");
+    try {
+        await logout()
+    }
+    catch (error) {
+        console.error("Logout error:", error)
+    }
+    finally {
+        localStorage.clear()
+        router.push("/login")
+    }
 }
 </script>
 
 <style scoped>
-.dashboard-navbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:15px 40px;
-    background:white;
-    border-bottom:1px solid #ddd;
+.dashboard-navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid #E5E7EB;
 }
-.logo a{
-    text-decoration:none;
-    font-size:24px;
-    color:#2E7D32;
-    font-weight:bold;
+.brand {
+    color: #2E7D32;
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
 }
-.dashboard-links{
-    display:flex;
-    align-items:center;
-    gap:20px;
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 20px;
 }
-.dashboard-links a{
-    text-decoration:none;
-    color:#2E7D32;
-    font-weight:bold;
+.nav-link {
+    background: none;
+    border: none;
+    color: #2E7D32;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
 }
-.logout-btn{
-    border:none;
-    background:#2E7D32;
-    color:white;
-    padding:8px 18px;
-    border-radius:6px;
-    cursor:pointer;
+.nav-link:hover {
+    text-decoration: underline;
 }
-.logout-btn:hover{
-    background:#1B5E20;
+.logout-button {
+    padding: 10px 20px;
+    background: #2E7D32;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.logout-button:hover {
+    background: #256428;
 }
 </style>

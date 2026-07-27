@@ -21,6 +21,7 @@ Ensure the following software is installed before running the application:
 - npm
 - Git
 - Redis
+- MailHog
 - VS Code (Recommended)
 
 Verify installation:
@@ -260,11 +261,13 @@ http://localhost:5173
 
 # Running the Complete Application
 
-Open **three terminals**.
+Open **four terminals**.
 
-### Terminal 1
+---
 
-Run Backend
+### Terminal 1 - Backend
+
+Run the Flask Backend.
 
 ```bash
 cd backend
@@ -274,11 +277,17 @@ cd backend
 python app.py
 ```
 
+Backend URL:
+
+```
+http://127.0.0.1:5000
+```
+
 ---
 
-### Terminal 2
+### Terminal 2 - Redis Server
 
-Run Redis
+Start the Redis Server.
 
 ```bash
 redis-server
@@ -290,11 +299,53 @@ or
 .\redis-server.exe
 ```
 
+Leave this terminal running.
+
+**Optional: Verify Redis Connection**
+
+Open a **new terminal** only if you want to verify that Redis is running correctly.
+
+Windows:
+
+```bash
+.\redis-cli.exe ping
+```
+
+Linux / macOS:
+
+```bash
+redis-cli ping
+```
+
+Expected Output:
+
+```
+PONG
+```
+
 ---
 
-### Terminal 3
+### Terminal 3 - MailHog
 
-Run Frontend
+Navigate to the MailHog installation directory.
+
+```bash
+.\MailHog.exe
+```
+
+Leave this terminal running.
+
+Open the MailHog Web Interface:
+
+```
+http://localhost:8025
+```
+
+---
+
+### Terminal 4 - Frontend
+
+Run the Vue Frontend.
 
 ```bash
 cd frontend
@@ -302,6 +353,12 @@ cd frontend
 npm install
 
 npm run dev
+```
+
+Frontend URL:
+
+```
+http://localhost:5173
 ```
 
 ---
@@ -346,6 +403,10 @@ The application automatically creates a default administrator if one does not al
 - Axios Integration
 - Responsive User Interface
 
+### Mailing 
+
+- Staff Welcome Email (Development using MailHog)
+
 ---
 
 # Tech Stack
@@ -359,7 +420,12 @@ The application automatically creates a default administrator if one does not al
 - Flask JWT Extended
 - Flask CORS
 - SQLite
+
+## Development Tools
+
 - Redis
+- MailHog
+- Git
 
 ## Frontend
 
@@ -383,6 +449,7 @@ Update when required:
 - JWT_SECRET_KEY
 - SQLAlchemy Database URI
 - Redis Configuration
+- Mail Server Configuration
 
 ---
 
@@ -399,4 +466,3 @@ The following folders/files are ignored:
 - *.db
 - instance/
 
----

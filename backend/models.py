@@ -65,6 +65,7 @@ class StaffStatus(enum.Enum):
     ACTIVE = "Active"
     INACTIVE = "Inactive"
     SUSPENDED = "Suspended"
+    DISMISSED = "Dismissed"
     
 class Staff(db.Model):
     __tablename__ = "staff"
@@ -166,6 +167,9 @@ class Trek(db.Model):
 
     def __repr__(self):
         return f"<Trek {self.trek_name}>"
+    
+# Booking Details
+# Default Inputs for the columns  
 
 class BookingStatus(enum.Enum):
     PENDING = "Pending"

@@ -1,56 +1,58 @@
 <template>
     <div class="dashboard-container">
         <h1>Admin Dashboard</h1>
-        <p>
+        <p class="welcome-message">
             Welcome to the Trekking Management System Admin Portal.
         </p>
-        <div class="dashboard-actions">
-            <button @click="goToCreateStaff">
-                Create Staff
-            </button>
-            <button @click="goToProfile">
-                My Profile
-            </button>
-        </div>
+        <DashboardStats
+            :stats="dashboardStats"/>
     </div>
 </template>
 
 <script setup>
-import { useRouter } from "vue-router"
+import { ref, onMounted } from "vue"
 
-const router = useRouter()
-function goToCreateStaff() {
-    router.push("/admin/create-staff")
-}
-function goToProfile() {
-    router.push("/profile")
-}
+import { getDashboard } from "../../services/admin"
+
+import DashboardStats from "../../components/dashboard/DashboardStats.vue"
+import QuickActions from "../../components/dashboard/QuickActions.vue"
+import RecentActivity from "../../components/dashboard/RecentActivity.vue"
+
+const dashboardStats = ref({
+    totalStaff: 0,
+    totalTrekkers: 0,
+    totalTreks: 0,
+    totalBookings: 0,
+    totalRevenue: 0,
+    upcomingTreks: 0
+})
+const recentActivities = ref([])
+
+onMounted(async () => {
+    try {
+        const response = await getDashboard()
+        dashboardStats.value = response.data.statistics
+        recentActivities.value = response.data.activities
+    }
+    catch (error) {
+        console.error("Failed to load dashboard:", error)
+    }
+})
 </script>
 
 <style scoped>
 .dashboard-container{
-    width:80%;
+    width:90%;
     margin:auto;
-    padding:40px;
+    padding:30px;
 }
 h1{
     color:#2E7D32;
+    margin-bottom:10px;
 }
-.dashboard-actions{
-    margin-top:30px;
-    display:flex;
-    gap:20px;
-}
-button{
-    padding:12px 25px;
-    background:#2E7D32;
-    color:white;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
+.welcome-message{
+    color:#6B7280;
+    margin-bottom:30px;
     font-size:16px;
-}
-button:hover{
-    background:#256428;
 }
 </style>

@@ -1,49 +1,49 @@
 <template>
-    <div class="create-staff-page">
+    <div class="create-trek-page">
         <!-- Page Header -->
         <div class="page-header">
             <div>
-                <h1>Create Staff</h1>
+                <h1>Create Trek</h1>
                 <p>
-                    Fill in the details below to create a new Staff account.
+                    Create a new trekking activity and assign a guide.
                 </p>
             </div>
             <!-- Back Button -->
             <button
                 class="back-button"
-                @click="goBackToStaff">
-                ← Back to Staff
+                @click="goBackToTreks">
+                ← Back to Treks
             </button>
         </div>
-        <!-- Create Staff Form -->
-        <CreateStaffForm />
+        <!-- Trek Form -->
+        <CreateTrekForm />
     </div>
 </template>
 
 <script setup>
 import { useRouter } from "vue-router"
-import CreateStaffForm from "../../components/admin/CreateStaffForm.vue"
+import CreateTrekForm from "../../components/admin/CreateTrekForm.vue"
 const router = useRouter()
-// Return to Staff Management
-function goBackToStaff() {
-    router.push("/admin/staff")
+// Back to Trek Management
+function goBackToTreks() {
+    router.push("/admin/treks")
 }
-
 </script>
 
 <style scoped>
-.create-staff-page {
+.create-trek-page {
     width: 80%;
     max-width: 1200px;
     margin: auto;
     padding: 40px;
 }
-/* Page Header */
+/* Header */
 .page-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     gap: 20px;
+    margin-bottom: 30px;
 }
 .page-header h1 {
     color: #2E7D32;
@@ -71,7 +71,7 @@ function goBackToStaff() {
 }
 /* Responsive */
 @media (max-width: 700px) {
-    .create-staff-page {
+    .create-trek-page {
         width: 90%;
         padding: 25px 10px;
     }

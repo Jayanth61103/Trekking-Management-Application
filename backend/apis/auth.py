@@ -102,40 +102,36 @@ def register():
 # Login Verification
 @auth_bp.route("/login", methods=["POST"])
 def login():
-
-    # Read JSON data from frontend
-    data = request.get_json()
-
+    # Read JSON data
+    data = request.get_json(silent=True) or {}
     # Extract Login Details
     email = data.get("email")
     password = data.get("password")
-
     # Validate Required Fields
     if not email or not password:
         return jsonify({
             "message": "Email and Password are required."
         }), 400
-
     # Check whether User exists
     user = User.query.filter_by(email=email).first()
-
     if not user:
         return jsonify({
             "message": "User not found."
         }), 404
-
     # Verify Password
     if user.password != password:
         return jsonify({
             "message": "Invalid Password."
         }), 401
-
+    # Check whether User account is active
+    if not user.is_active:
+        return jsonify({
+            "message": "Your account is inactive or suspended. Please contact the administrator."
+        }), 403
     try:
-
         # Update Last Login Time
         user.last_login = datetime.utcnow()
         db.session.commit()
-
         # Generate JWT Token
         access_token = create_access_token(
             identity=str(user.id),
@@ -144,7 +140,6 @@ def login():
                 "role": user.role.value
             }
         )
-
         # Return Success Response
         return jsonify({
             "message": "Login Successful.",
@@ -158,14 +153,11 @@ def login():
                 "role": user.role.value
             }
         }), 200
-
     except Exception as e:
-
         db.session.rollback()
-
+        print("LOGIN ERROR:", e)
         return jsonify({
-            "message": "Login failed.",
-            "error": str(e)
+            "message": "Login failed."
         }), 500
 
 # Fetches Profile Details  

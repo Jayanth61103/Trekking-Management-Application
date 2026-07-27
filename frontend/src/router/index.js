@@ -14,7 +14,10 @@ import ProfileView from "../views/common/ProfileView.vue";
 
 // Admin Views
 import AdminDashboard from "../views/admin/AdminDashboard.vue";
+import StaffManagementView from "../views/admin/StaffManagementView.vue";
 import CreateStaffView from "../views/admin/CreateStaffView.vue";
+import TrekManagementView from "../views/admin/TrekManagementView.vue";
+import CreateTrekView from "../views/admin/CreateTrekView.vue";
 
 // Staff Views
 import StaffDashboard from "../views/staff/StaffDashboard.vue";
@@ -25,26 +28,25 @@ import TrekkerDashboard from "../views/trekker/TrekkerDashboard.vue";
 // Authentication Helpers
 import { isLoggedIn, getRole } from "../services/auth";
 
-// Routes
 const routes = [
-
-    // Public Layout
+    // PUBLIC ROUTES
     {
         path: "/",
         component: AuthLayout,
 
         children: [
-
             {
                 path: "",
                 name: "Home",
                 component: HomeView
             },
+
             {
                 path: "login",
                 name: "Login",
                 component: LoginView
             },
+
             {
                 path: "register",
                 name: "Register",
@@ -53,13 +55,14 @@ const routes = [
         ]
     },
 
-    // Protected Layout
+    // PROTECTED ROUTES
     {
         path: "/",
         component: MainLayout,
 
         children: [
 
+            // Profile
             {
                 path: "profile",
                 name: "Profile",
@@ -68,6 +71,8 @@ const routes = [
                     requiresAuth: true
                 }
             },
+
+            // ADMIN
             {
                 path: "admin/dashboard",
                 name: "AdminDashboard",
@@ -77,6 +82,17 @@ const routes = [
                     role: "Admin"
                 }
             },
+
+            {
+                path: "admin/staff",
+                name: "StaffManagement",
+                component: StaffManagementView,
+                meta: {
+                    requiresAuth: true,
+                    role: "Admin"
+                }
+            },
+
             {
                 path: "admin/create-staff",
                 name: "CreateStaff",
@@ -86,6 +102,25 @@ const routes = [
                     role: "Admin"
                 }
             },
+
+            {
+                path: "admin/treks",
+                name: "TrekManagement",
+                component: TrekManagementView,
+                meta: {
+                    requiresAuth: true, role: "Admin"}
+            },
+
+            {
+                path: "admin/create-trek",
+                name: "CreateTrek",
+                component: CreateTrekView,
+                meta: {
+                    requiresAuth: true, role: "Admin"}
+
+            },
+
+            // STAFF
             {
                 path: "staff/dashboard",
                 name: "StaffDashboard",
@@ -95,6 +130,8 @@ const routes = [
                     role: "Staff"
                 }
             },
+
+            // TREKKER
             {
                 path: "trekker/dashboard",
                 name: "TrekkerDashboard",
@@ -107,27 +144,32 @@ const routes = [
         ]
     }
 ];
-
-// Create Router
 const router = createRouter({
     history: createWebHistory(),
     routes
 });
 
-// Navigation Guard
-router.beforeEach((to, from, next) => {
-
-    // User not logged in
+// NAVIGATION GUARD
+router.beforeEach((to) => {
+    // Protected route without login
     if (to.meta.requiresAuth && !isLoggedIn()) {
-        return next("/login");
+        return "/login";
     }
-
-    // Wrong Role
+    // Role protected route
     if (to.meta.role && getRole() !== to.meta.role) {
-        return next("/login");
+        const role = getRole();
+        if (role === "Admin") {
+            return "/admin/dashboard";
+        }
+        if (role === "Staff") {
+            return "/staff/dashboard";
+        }
+        if (role === "Trekker") {
+            return "/trekker/dashboard";
+        }
+        return "/login";
     }
-    next();
+    // Allow navigation
+    return true;
 });
-
-// Export
 export default router;
