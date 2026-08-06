@@ -3,17 +3,22 @@ from datetime import date, datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from werkzeug.security import generate_password_hash
+
 from models import (
     db,
     User,
     Staff,
     Trek,
+    Trekker,
+    Booking,
     UserRole,
     Department,
     Designation,
     StaffStatus,
     TrekDifficulty,
     TrekStatus,
+    TrekkerStatus,
 )
 
 from utils.dashboard import get_dashboard_statistics
@@ -57,94 +62,86 @@ def dashboard():
         }), 500
 
 # Admin - Create Staff
+# Admin - Create Staff
 @admin_bp.route("/create-staff", methods=["POST"])
 @jwt_required()
 def create_staff():
-
-    # Get Logged-in User
+    # Check logged-in Admin
     user_id = int(get_jwt_identity())
     current_user = db.session.get(User, user_id)
 
-    # Only Admin can Create Staff
     if current_user is None or current_user.role != UserRole.ADMIN:
         return jsonify({
             "message": "Access denied. Only Admin can create Staff."
         }), 403
 
-    # Read JSON Data
+    # Read request data
     data = request.get_json(silent=True)
+
     if not data:
         return jsonify({
             "message": "Request body must contain JSON data."
         }), 400
-    full_name = data.get("full_name")
-    username = data.get("username")
-    email = data.get("email")
-    phone = data.get("phone")
-    password = data.get("password")
-    department_value = data.get("department")
-    designation_value = data.get("designation")
+
+    full_name = str(data.get("full_name", "")).strip()
+    username = str(data.get("username", "")).strip()
+    email = str(data.get("email", "")).strip().lower()
+    phone = str(data.get("phone", "")).strip()
+    password = data.get("password", "")
+    department_value = str(data.get("department", "")).strip().upper()
+    designation_value = str(data.get("designation", "")).strip().upper()
     joining_date_value = data.get("joining_date")
     experience_years = data.get("experience_years", 0)
 
-    # Validate Required Fields
+    # Validate required fields
     if not all([
-        full_name,
-        username,
-        email,
-        phone,
-        password,
-        department_value,
-        designation_value
+        full_name, username, email, phone, password,
+        department_value, designation_value
     ]):
         return jsonify({
             "message": "All required fields must be provided."
         }), 400
-
-    # 4. Validate Phone Number
-    phone = str(phone).strip()
 
     if len(phone) != 10 or not phone.isdigit():
         return jsonify({
             "message": "Phone number must contain exactly 10 digits."
         }), 400
 
-    # Validate Experience
+    # Validate experience
     try:
         experience_years = int(experience_years)
+
         if experience_years < 0:
             return jsonify({
                 "message": "Experience years cannot be negative."
             }), 400
+
     except (ValueError, TypeError):
         return jsonify({
             "message": "Experience years must be a valid number."
         }), 400
 
-    # Convert Department and Designation to Enums
+    # Validate Department and Designation
     try:
-        department = Department(department_value)
-    except ValueError:
+        department = Department[department_value]
+    except KeyError:
         return jsonify({
             "message": "Invalid Department.",
-            "allowed_departments": [
-                department.value for department in Department
-            ]
-        }), 400
-    try:
-        designation = Designation(designation_value)
-    except ValueError:
-        return jsonify({
-            "message": "Invalid Designation.",
-            "allowed_designations": [
-                designation.value for designation in Designation
-            ]
+            "allowed_departments": [item.name for item in Department]
         }), 400
 
-    # Convert Joining Date
+    try:
+        designation = Designation[designation_value]
+    except KeyError:
+        return jsonify({
+            "message": "Invalid Designation.",
+            "allowed_designations": [item.name for item in Designation]
+        }), 400
+
+    # Validate joining date
     if joining_date_value:
         try:
-            joining_date = date.fromisoformat(joining_date_value)
+            joining_date = date.fromisoformat(str(joining_date_value))
         except ValueError:
             return jsonify({
                 "message": "Joining date must be in YYYY-MM-DD format."
@@ -152,79 +149,71 @@ def create_staff():
     else:
         joining_date = date.today()
 
-    # Check Duplicate Username
+    # Check duplicate User information
     if User.query.filter_by(username=username).first():
         return jsonify({
             "message": "Username already exists."
         }), 409
 
-    # Check Duplicate Email
     if User.query.filter_by(email=email).first():
         return jsonify({
             "message": "Email already exists."
         }), 409
 
-    # Check Duplicate Phone
     if User.query.filter_by(phone=phone).first():
         return jsonify({
             "message": "Phone number already exists."
         }), 409
 
     # Create User and Staff
-
     try:
-        # Create User Account
         new_user = User(
             full_name=full_name,
             username=username,
             email=email,
             phone=phone,
-            password=password,
+            password=generate_password_hash(password),
             role=UserRole.STAFF,
             is_active=True
         )
-        db.session.add(new_user)
 
-        # Flush generates new_user.id without committing
+        db.session.add(new_user)
         db.session.flush()
 
-        # Generate Employee Code
-        last_staff = Staff.query.order_by(
-            Staff.staff_id.desc()
-        ).first()
+        last_staff = Staff.query.order_by(Staff.staff_id.desc()).first()
 
         if last_staff:
             employee_code = f"EMP{last_staff.staff_id + 1:04d}"
         else:
             employee_code = "EMP0001"
 
-        # Create Staff Profile
         new_staff = Staff(
             user_id=new_user.id,
             employee_code=employee_code,
-
-            # These are already converted Enum objects
             department=department,
             designation=designation,
-
             joining_date=joining_date,
             experience_years=experience_years,
             status=StaffStatus.ACTIVE
         )
+
         db.session.add(new_staff)
-        # Save User + Staff together
         db.session.commit()
+
     except Exception as e:
         db.session.rollback()
         print("CREATE STAFF DATABASE ERROR:", repr(e))
+
         return jsonify({
             "message": "Unable to create Staff.",
             "error": str(e)
         }), 500
 
-    # Send Welcome Email
-    try:
+    # Send welcome email
+    email_sent = True
+    email_error = None
 
+    try:
         send_staff_welcome_email(
             user_email=new_user.email,
             full_name=new_user.full_name,
@@ -232,45 +221,35 @@ def create_staff():
             password=password
         )
     except Exception as e:
+        email_sent = False
+        email_error = str(e)
         print("STAFF WELCOME EMAIL ERROR:", repr(e))
-        # Staff is already created.
-        # Email failure should NOT rollback Staff creation.
+
+    # Prepare response
+    staff_data = {
+        "staff_uuid": new_staff.staff_uuid,
+        "employee_code": new_staff.employee_code,
+        "full_name": new_user.full_name,
+        "username": new_user.username,
+        "email": new_user.email,
+        "phone": new_user.phone,
+        "department": new_staff.department.value,
+        "designation": new_staff.designation.value,
+        "joining_date": new_staff.joining_date.isoformat(),
+        "experience_years": new_staff.experience_years,
+        "status": new_staff.status.value
+    }
+
+    if not email_sent:
         return jsonify({
-            "message": (
-                "Staff account created successfully, "
-                "but welcome email could not be sent."
-            ),
-            "email_error": str(e),
-            "staff": {
-                "staff_uuid": new_staff.staff_uuid,
-                "employee_code": new_staff.employee_code,
-                "full_name": new_user.full_name,
-                "username": new_user.username,
-                "email": new_user.email,
-                "department": new_staff.department.value,
-                "designation": new_staff.designation.value,
-                "joining_date": new_staff.joining_date.isoformat(),
-                "experience_years": new_staff.experience_years,
-                "status": new_staff.status.value
-            }
+            "message": "Staff account created successfully, but welcome email could not be sent.",
+            "email_error": email_error,
+            "staff": staff_data
         }), 201
 
-    # Success Response
     return jsonify({
         "message": "Staff account created successfully.",
-        "staff": {
-            "staff_uuid": new_staff.staff_uuid,
-            "employee_code": new_staff.employee_code,
-            "full_name": new_user.full_name,
-            "username": new_user.username,
-            "email": new_user.email,
-            "phone": new_user.phone,
-            "department": new_staff.department.value,
-            "designation": new_staff.designation.value,
-            "joining_date": new_staff.joining_date.isoformat(),
-            "experience_years": new_staff.experience_years,
-            "status": new_staff.status.value
-        }
+        "staff": staff_data
     }), 201
 
 # Admin - Get All Staff
@@ -1065,4 +1044,204 @@ def update_trek(trek_uuid):
 
         return jsonify({
             "message": "Unable to update Trek."
+        }), 500
+
+# Admin - Get All Trekkers
+@admin_bp.route("/trekkers", methods=["GET"])
+@jwt_required()
+def get_all_trekkers():
+    try:
+        user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, user_id)
+
+        if current_user is None or current_user.role != UserRole.ADMIN:
+            return jsonify({
+                "message": "Access denied. Only Admin can view Trekkers."
+            }), 403
+
+        trekkers = Trekker.query.order_by(Trekker.trekker_id.desc()).all()
+
+        trekkers_data = []
+        for trekker in trekkers:
+            trekkers_data.append({
+                "trekker_uuid": trekker.trekker_uuid,
+                "user_uuid": trekker.user.user_uuid,
+                "full_name": trekker.user.full_name,
+                "username": trekker.user.username,
+                "email": trekker.user.email,
+                "phone": trekker.user.phone,
+                "status": trekker.status.value,
+                "is_active": trekker.user.is_active,
+                "total_bookings": len(trekker.bookings)
+            })
+
+        return jsonify({
+            "trekkers": trekkers_data,
+            "total": len(trekkers_data)
+        }), 200
+
+    except Exception as e:
+        print("GET ALL TREKKERS ERROR:", repr(e))
+        return jsonify({
+            "message": "Unable to load Trekkers."
+        }), 500
+
+
+# Admin - Get Trekker Details
+@admin_bp.route("/trekkers/<trekker_uuid>", methods=["GET"])
+@jwt_required()
+def get_trekker_details(trekker_uuid):
+    try:
+        user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, user_id)
+
+        if current_user is None or current_user.role != UserRole.ADMIN:
+            return jsonify({
+                "message": "Access denied."
+            }), 403
+
+        trekker = Trekker.query.filter_by(
+            trekker_uuid=trekker_uuid
+        ).first()
+
+        if not trekker:
+            return jsonify({
+                "message": "Trekker not found."
+            }), 404
+
+        return jsonify({
+            "trekker": {
+                "trekker_uuid": trekker.trekker_uuid,
+                "user_uuid": trekker.user.user_uuid,
+                "full_name": trekker.user.full_name,
+                "username": trekker.user.username,
+                "email": trekker.user.email,
+                "phone": trekker.user.phone,
+                "date_of_birth": (
+                    trekker.date_of_birth.isoformat()
+                    if trekker.date_of_birth else None
+                ),
+                "gender": trekker.gender.value if trekker.gender else None,
+                "blood_group": trekker.blood_group.value if trekker.blood_group else None,
+                "emergency_contact": trekker.emergency_contact,
+                "medical_conditions": trekker.medical_conditions,
+                "status": trekker.status.value,
+                "is_active": trekker.user.is_active,
+                "total_bookings": len(trekker.bookings)
+            }
+        }), 200
+
+    except Exception as e:
+        print("Get Trekker Details Error:", e)
+        return jsonify({
+            "message": "Unable to load Trekker details."
+        }), 500
+
+
+# Admin - Update Trekker Status (Blacklist/Deactivate/Reactivate)
+@admin_bp.route("/trekkers/<trekker_uuid>/status", methods=["PATCH"])
+@jwt_required()
+def update_trekker_status(trekker_uuid):
+    try:
+        user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, user_id)
+
+        if current_user is None or current_user.role != UserRole.ADMIN:
+            return jsonify({
+                "message": "Access denied. Only Admin can update Trekkers."
+            }), 403
+
+        trekker = Trekker.query.filter_by(
+            trekker_uuid=trekker_uuid
+        ).first()
+
+        if not trekker:
+            return jsonify({
+                "message": "Trekker not found."
+            }), 404
+
+        data = request.get_json() or {}
+        status = data.get("status")
+
+        if not status:
+            return jsonify({
+                "message": "Status is required."
+            }), 400
+
+        try:
+            new_status = TrekkerStatus[status.upper()]
+        except KeyError:
+            return jsonify({
+                "message": "Invalid Trekker status."
+            }), 400
+
+        trekker.status = new_status
+
+        if new_status == TrekkerStatus.ACTIVE:
+            trekker.user.is_active = True
+        else:
+            trekker.user.is_active = False
+
+        db.session.commit()
+
+        return jsonify({
+            "message": "Trekker status updated successfully.",
+            "trekker": {
+                "trekker_uuid": trekker.trekker_uuid,
+                "full_name": trekker.user.full_name,
+                "status": trekker.status.value,
+                "is_active": trekker.user.is_active
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        print("Update Trekker Status Error:", e)
+        return jsonify({
+            "message": "Unable to update Trekker status."
+        }), 
+
+# Admin - Get All Bookings (History)
+@admin_bp.route("/bookings", methods=["GET"])
+@jwt_required()
+def get_all_bookings():
+    try:
+        user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, user_id)
+
+        if current_user is None or current_user.role != UserRole.ADMIN:
+            return jsonify({
+                "message": "Access denied. Only Admin can view Bookings."
+            }), 403
+
+        bookings = Booking.query.order_by(Booking.booking_date.desc()).all()
+
+        bookings_data = []
+        for booking in bookings:
+            bookings_data.append({
+                "booking_uuid": booking.booking_uuid,
+                "trekker_name": booking.trekker.user.full_name,
+                "trekker_email": booking.trekker.user.email,
+                "trek_name": booking.trek.trek_name,
+                "trek_uuid": booking.trek.trek_uuid,
+                "number_of_people": booking.number_of_people,
+                "booking_amount": float(booking.booking_amount),
+                "booking_status": booking.booking_status.value,
+                "payment_status": booking.payment_status.value,
+                "booking_date": (
+                    booking.booking_date.isoformat()
+                    if booking.booking_date else None
+                ),
+                "trek_status": booking.trek.status.value
+            })
+
+        return jsonify({
+            "bookings": bookings_data,
+            "total": len(bookings_data)
+        }), 200
+
+    except Exception as e:
+        print("GET ALL BOOKINGS ERROR:", repr(e))
+        return jsonify({
+            "message": "Unable to load Bookings."
         }), 500

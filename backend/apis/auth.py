@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models import db, User, UserRole, Trekker
+from werkzeug.security import generate_password_hash
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token, get_jwt
 
 from datetime import datetime, timezone
@@ -59,7 +60,7 @@ def register():
             full_name=full_name,
             username=username,
             email=email,
-            password=password,          # Later replace with hashed password
+            password=generate_password_hash(password),         
             phone=phone,
             role=UserRole.TREKKER
         )
@@ -119,7 +120,7 @@ def login():
             "message": "User not found."
         }), 404
     # Verify Password
-    if user.password != password:
+    if not user.check_password(password):
         return jsonify({
             "message": "Invalid Password."
         }), 401
@@ -326,7 +327,7 @@ def change_password():
             }), 400
 
         # Check Current Password
-        if user.password != current_password:
+        if not user.check_password(current_password):
             return jsonify({
                 "message": "Current password is incorrect."
             }), 401
@@ -344,7 +345,7 @@ def change_password():
             }), 400
 
         # Update Password
-        user.password = new_password
+        user.set_password(new_password)
 
         db.session.commit()
 

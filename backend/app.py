@@ -8,6 +8,8 @@ from extensions import db, jwt, mail
 # Database Models
 from models import db, User, UserRole
 
+from werkzeug.security import generate_password_hash
+
 # API Blueprints
 from apis.auth import auth_bp
 from apis.admin import admin_bp
@@ -76,7 +78,7 @@ def create_default_admin():
         full_name="System Administrator",
         username="admin",
         email="admin@trek.com",
-        password="Admin@123",     # Replace with hashed password later
+        password=generate_password_hash("Admin@123"),
         phone="9999999999",
         role=UserRole.ADMIN,
         is_active=True

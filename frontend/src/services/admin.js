@@ -53,3 +53,25 @@ export function updateTrek(trekUuid, data) {
         `/admin/treks/${trekUuid}`,
         data);
 }
+
+// Trekker Managements
+// Get All Trekkers
+export function getAllTrekkers() {
+    return api.get("/admin/trekkers");
+}
+
+// Get One Trekker
+export function getTrekkerDetails(trekkerUuid) {
+    return api.get(`/admin/trekkers/${trekkerUuid}`);
+}
+
+// Update Trekker Status
+export function updateTrekkerStatus(trekkerUuid, status) {
+    return api.patch(`/admin/trekkers/${trekkerUuid}/status`, { status: status });
+}
+
+// Booking Management
+// Get All Bookings
+export function getAllBookings() {
+    return api.get("/admin/bookings");
+}

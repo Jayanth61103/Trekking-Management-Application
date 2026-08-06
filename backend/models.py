@@ -1,5 +1,6 @@
 from extensions import db
 from sqlalchemy import Enum
+from werkzeug.security import generate_password_hash, check_password_hash
 from utils.id_generator import generate_uuid
 import enum
 
@@ -39,6 +40,12 @@ class User(db.Model):
     # Verification of details 
     email_verified = db.Column(db.Boolean, default=True)
     phone_verified = db.Column(db.Boolean, default=False)
+
+    def set_password(self, plain_password):
+        self.password = generate_password_hash(plain_password)
+
+    def check_password(self, plain_password):
+        return check_password_hash(self.password, plain_password)
 
     # Relationships
     staff_profile = db.relationship("Staff", back_populates="user", uselist=False, cascade="all, delete-orphan")

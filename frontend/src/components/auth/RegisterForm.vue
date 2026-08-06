@@ -34,9 +34,12 @@
       <div class="form-group">
         <label>Phone</label>
         <input
-          type="text"
+          type="tel"
           v-model="phone"
           placeholder="Enter Phone Number"
+          maxlength="10"
+          pattern="[0-9]{10}"
+          required
         />
       </div>
       <div class="form-group">
@@ -78,6 +81,12 @@ const message = ref("");
 async function registerUser() {
 
     message.value = "";
+
+    if (!/^\d{10}$/.test(phone.value)) {
+        message.value = "Phone number must contain exactly 10 digits.";
+        return;
+    }
+
     try {
         const { data } = await register({
             full_name: full_name.value,
