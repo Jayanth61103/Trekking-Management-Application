@@ -34,3 +34,8 @@ export function getMyBookings() {
 export function cancelBooking(bookingUuid) {
     return api.patch(`/trekker/bookings/${bookingUuid}/cancel`);
 }
+
+// Export Booking History (CSV via Email)
+export function exportHistory() {
+    return api.post("/trekker/export-history");
+}

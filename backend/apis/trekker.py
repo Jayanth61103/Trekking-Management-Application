@@ -3,6 +3,8 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from utils.cache import get_cache, set_cache, clear_cache_prefix
+
 from models import (
     db,
     User,
@@ -76,7 +78,6 @@ def trekker_profile():
     }), 200
 
 
-# Trekker - Browse Open Treks (with filters)
 @trekker_bp.route("/treks", methods=["GET"])
 @jwt_required()
 def browse_treks():
@@ -86,23 +87,30 @@ def browse_treks():
     if user is None or trekker is None:
         return jsonify({"message": "Access Denied. Trekkers only."}), 403
 
+    difficulty = request.args.get("difficulty", "")
+    location = request.args.get("location", "")
+    max_duration = request.args.get("max_duration", "")
+
+    cache_key = f"treks:browse:{difficulty}:{location}:{max_duration}"
+    cached_result = get_cache(cache_key)
+
+    if cached_result is not None:
+        return jsonify(cached_result), 200
+
     query = Trek.query.filter(
         Trek.status == TrekStatus.OPEN,
         Trek.available_slots > 0
     )
 
-    difficulty = request.args.get("difficulty")
     if difficulty:
         try:
             query = query.filter(Trek.difficulty == TrekDifficulty[difficulty.upper()])
         except KeyError:
             pass
 
-    location = request.args.get("location")
     if location:
         query = query.filter(Trek.location.ilike(f"%{location}%"))
 
-    max_duration = request.args.get("max_duration")
     if max_duration:
         try:
             query = query.filter(Trek.duration_days <= int(max_duration))
@@ -127,10 +135,14 @@ def browse_treks():
             "status": trek.status.value
         })
 
-    return jsonify({
+    result = {
         "treks": treks_data,
         "total": len(treks_data)
-    }), 200
+    }
+
+    set_cache(cache_key, result)
+
+    return jsonify(result), 200
 
 
 # Trekker - Get One Trek (for booking page)
@@ -251,6 +263,7 @@ def create_booking():
             trek.status = TrekStatus.FULL
 
         db.session.commit()
+        clear_cache_prefix("treks:")
 
     except Exception as e:
         db.session.rollback()
@@ -345,6 +358,7 @@ def cancel_booking(booking_uuid):
             trek.status = TrekStatus.OPEN
 
         db.session.commit()
+        clear_cache_prefix("treks:")
 
     except Exception as e:
         db.session.rollback()
@@ -358,3 +372,20 @@ def cancel_booking(booking_uuid):
             "booking_status": booking.booking_status.value
         }
     }), 200
+
+# Trekker - Trigger CSV Export (Async)
+@trekker_bp.route("/export-history", methods=["POST"])
+@jwt_required()
+def export_history():
+    user_id = int(get_jwt_identity())
+    user, trekker = get_logged_in_trekker(user_id)
+
+    if user is None or trekker is None:
+        return jsonify({"message": "Access Denied. Trekkers only."}), 403
+
+    from tasks import export_trekking_history_csv
+    export_trekking_history_csv.delay(trekker.trekker_id)
+
+    return jsonify({
+        "message": "Export started. You will receive an email shortly with your trekking history."
+    }), 202

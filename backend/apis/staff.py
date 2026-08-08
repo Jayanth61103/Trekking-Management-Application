@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from utils.cache import clear_cache_prefix
+
 from models import (
     db,
     User,
@@ -209,6 +211,7 @@ def update_trek_slots(trek_uuid):
     try:
         trek.available_slots = available_slots
         db.session.commit()
+        clear_cache_prefix("treks:")
     except Exception as e:
         db.session.rollback()
         print("Update Trek Slots Error:", e)
@@ -273,6 +276,7 @@ def update_trek_status(trek_uuid):
 
     try:
         db.session.commit()
+        clear_cache_prefix("treks:")
     except Exception as e:
         db.session.rollback()
         print("Update Trek Status Error:", e)

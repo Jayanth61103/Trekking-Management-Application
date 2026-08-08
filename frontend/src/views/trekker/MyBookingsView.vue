@@ -3,6 +3,10 @@
         <div class="bookings-header">
             <h1>My Bookings</h1>
             <p>Track your trekking bookings and history.</p>
+            <button class="export-button" :disabled="exporting" @click="handleExport">
+                {{ exporting ? "Sending..." : "Export History (Email)" }}
+            </button>
+            <p v-if="exportMessage" class="export-message">{{ exportMessage }}</p>
         </div>
 
         <p v-if="loading" class="state-message">Loading bookings...</p>
@@ -43,12 +47,14 @@
 
 <script setup>
 import { ref, onMounted } from "vue"
-import { getMyBookings, cancelBooking } from "../../services/trekker"
+import { getMyBookings, cancelBooking, exportHistory } from "../../services/trekker"
 
 const bookings = ref([])
 const loading = ref(true)
 const errorMessage = ref("")
 const cancellingId = ref(null)
+const exporting = ref(false)
+const exportMessage = ref("")
 
 async function loadBookings() {
     try {
@@ -87,6 +93,23 @@ async function cancel(bookingUuid) {
     }
     finally {
         cancellingId.value = null
+    }
+}
+
+async function handleExport() {
+    try {
+        exporting.value = true
+        exportMessage.value = ""
+        const response = await exportHistory()
+        exportMessage.value = response.data.message
+    }
+    catch (error) {
+        exportMessage.value =
+            error.response?.data?.message ||
+            "Unable to start export."
+    }
+    finally {
+        exporting.value = false
     }
 }
 
@@ -168,6 +191,19 @@ onMounted(() => {
 }
 .cancel-button:hover:not(:disabled) { background: #FEF2F2; }
 .cancel-button:disabled { opacity: 0.6; cursor: not-allowed; }
+.export-button {
+    margin-top: 10px;
+    padding: 9px 16px;
+    background: white;
+    color: #2E7D32;
+    border: 1px solid #2E7D32;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+.export-button:hover:not(:disabled) { background: #F0FDF4; }
+.export-button:disabled { opacity: 0.6; cursor: not-allowed; }
+.export-message { color: #2E7D32; font-size: 14px; margin-top: 8px; }
 @media (max-width: 600px) {
     .booking-card { flex-direction: column; }
     .booking-side { align-items: flex-start; width: 100%; }

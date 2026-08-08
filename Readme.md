@@ -73,6 +73,16 @@ python -m venv venv
 source venv/bin/activate
 ```
 
+## Step 3.5: Create Environment File
+
+Create a `.env` file inside the `backend` folder with the following:
+
+```
+JWT_SECRET_KEY=your_secret_key_here
+```
+
+This file is excluded from Git via `.gitignore` and must be created manually after cloning.
+
 ## Step 4: Install Required Packages
 
 ```bash
@@ -113,9 +123,13 @@ Default Admin Already Exists.
 
 ---
 
-# Redis Setup (Required for JWT Blacklisting)
+# Redis Setup (Required for JWT Blacklisting, Celery Broker, and Caching)
 
-Redis is used to store revoked JWT tokens after user logout.
+Redis is used for three purposes in this application:
+
+- Storing revoked JWT tokens after user logout (Database 0)
+- Acting as the message broker and result backend for Celery (Database 1)
+- Caching frequently accessed API responses, such as Trek listings (Database 1)
 
 > **Note:** Redis binaries are not included in this repository. Install Redis separately or use the Redis package provided by the course instructor.
 
@@ -231,6 +245,78 @@ If emails are not received:
 
 ---
 
+# Celery Setup (Required for Background Jobs and Scheduled Tasks)
+
+Celery is used to run background jobs outside the normal request/response cycle, such as sending reminder emails, generating monthly reports, and exporting trekking history as CSV. Celery Beat is used to automatically trigger the scheduled jobs (daily reminders and the monthly report) on a timer.
+
+Celery requires Redis to already be running, since Redis acts as its message broker (see Redis Setup above).
+
+> **Note:** On Windows, Celery's default worker pool is not fully compatible, so the `--pool=solo` flag is required.
+
+## Step 1: Start the Celery Worker
+
+Open a new terminal.
+
+```bash
+cd backend
+
+.\venv\Scripts\activate
+
+celery -A tasks worker --pool=solo --loglevel=info
+```
+
+If successful, the terminal will list the registered tasks (`tasks.export_trekking_history_csv`, `tasks.generate_monthly_report`, `tasks.send_trek_reminders`) and end with a line similar to:
+
+```
+celery@YOUR-PC-NAME ready.
+```
+
+Leave this terminal running.
+
+---
+
+## Step 2: Start Celery Beat
+
+Open another new terminal.
+
+```bash
+cd backend
+
+.\venv\Scripts\activate
+
+celery -A tasks beat --loglevel=info
+```
+
+If successful, the terminal will display the broker configuration and begin logging scheduler activity.
+
+Leave this terminal running.
+
+---
+
+## Step 3: Verify Celery is Working
+
+Open a temporary terminal.
+
+```bash
+cd backend
+
+.\venv\Scripts\activate
+
+python
+```
+
+Inside the Python shell:
+
+```python
+from tasks import generate_monthly_report
+generate_monthly_report.delay()
+exit()
+```
+
+Check the Celery Worker terminal — it should log that it received and executed the task within a few seconds. Then check the MailHog Web Interface (`http://localhost:8025`) for the report email.
+
+---
+
 # Frontend Setup
 
 ## Step 1: Navigate to frontend
@@ -261,7 +347,7 @@ http://localhost:5173
 
 # Running the Complete Application
 
-Open **four terminals**.
+Open **six terminals**.
 
 ---
 
@@ -343,7 +429,35 @@ http://localhost:8025
 
 ---
 
-### Terminal 4 - Frontend
+### Terminal 4 - Celery Worker
+
+```bash
+cd backend
+
+.\venv\Scripts\activate
+
+celery -A tasks worker --pool=solo --loglevel=info
+```
+
+Leave this terminal running.
+
+---
+
+### Terminal 5 - Celery Beat
+
+```bash
+cd backend
+
+.\venv\Scripts\activate
+
+celery -A tasks beat --loglevel=info
+```
+
+Leave this terminal running.
+
+---
+
+### Terminal 6 - Frontend
 
 Run the Vue Frontend.
 
@@ -390,6 +504,24 @@ The application automatically creates a default administrator if one does not al
 - Automatic Default Admin Creation
 - Create Staff
 - Role Based Access
+- Manage Treks (Create, Update, Assign Guide)
+- Manage Trekkers (View, Search, Blacklist/Deactivate)
+- View All Booking Records (History)
+- Dashboard Statistics
+
+### Staff
+
+- View Assigned Treks Only
+- Update Available Trek Slots
+- Update Trek Status (Open / Completed / Cancelled)
+- View and Manage Participant List
+
+### Trekker
+
+- Browse and Filter Open Treks (Difficulty, Location, Duration)
+- Book Treks with Slot and Duplicate-Booking Validation
+- View and Cancel My Bookings
+- Export Trekking History as CSV (via Email)
 
 ### Profile
 
@@ -399,13 +531,26 @@ The application automatically creates a default administrator if one does not al
 
 ### Frontend
 
-- Vue Router
+- Vue Router (Modular Route Files per Role)
 - Axios Integration
 - Responsive User Interface
+
+### Background Jobs (Celery + Redis)
+
+- Daily Trek Reminder Emails (Celery Beat, Scheduled)
+- Monthly Trekking Activity Report (Celery Beat, Scheduled)
+- User-Triggered CSV Export of Trekking History (Async, Emailed on Completion)
+
+### Caching (Redis)
+
+- Cached Trek Listing Endpoint with Automatic Invalidation on Trek/Booking Changes
 
 ### Mailing 
 
 - Staff Welcome Email (Development using MailHog)
+- Trek Reminder Emails
+- Monthly Report Emails
+- Trekking History CSV Export Emails
 
 ---
 
@@ -419,6 +564,9 @@ The application automatically creates a default administrator if one does not al
 - Flask SQLAlchemy
 - Flask JWT Extended
 - Flask CORS
+- Flask Mail
+- Celery
+- Redis
 - SQLite
 
 ## Development Tools
@@ -451,6 +599,23 @@ Update when required:
 - Redis Configuration
 - Mail Server Configuration
 
+Celery-specific configuration (broker URL, result backend, and scheduled task timings) is available in:
+
+```
+backend/celery_app.py
+```
+
+---
+
+# Known Limitations & Design Decisions
+
+- **Trek status flow**: Uses the existing `Upcoming → Open → Full/Completed/Cancelled` states to represent the "started/ongoing/completed" lifecycle described in the project brief, rather than introducing additional enum values, to avoid schema migrations under the project timeline.
+- **Booking approval**: Bookings are automatically approved on creation (subject to slot availability and duplicate-booking checks) rather than requiring manual Admin/Staff approval, since the brief does not specify an approval workflow.
+- **Password reset via email**: Not implemented; only the Staff welcome email, reminder, report, and CSV export flows use MailHog.
+- **CSV export delivery**: The exported trekking history is emailed as an attachment rather than offered as a direct in-browser download, since the export runs asynchronously via Celery outside the request/response cycle.
+- **Cache TTL**: Trek listings are cached for 60 seconds and are explicitly invalidated whenever a Trek is created, updated, booked, or cancelled, to balance performance with data freshness.
+- **Testing**: No automated test suite; testing was performed manually per milestone.
+
 ---
 
 # Git Ignore
@@ -465,4 +630,7 @@ The following folders/files are ignored:
 - *.sqlite3
 - *.db
 - instance/
-
+- celerybeat-schedule
+- celerybeat-schedule-shm
+- celerybeat-schedule-wal
+- dump.rdb

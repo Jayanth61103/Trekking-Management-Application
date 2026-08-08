@@ -5,6 +5,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from werkzeug.security import generate_password_hash
 
+from utils.cache import clear_cache_prefix
+
 from models import (
     db,
     User,
@@ -61,8 +63,7 @@ def dashboard():
                 "Unable to load dashboard."
         }), 500
 
-# Admin - Create Staff
-# Admin - Create Staff
+# Admin - Staff
 @admin_bp.route("/create-staff", methods=["POST"])
 @jwt_required()
 def create_staff():
@@ -672,6 +673,9 @@ def create_trek():
         db.session.add(new_trek)
         db.session.commit()
 
+        # Clear cached trek listings since a new Trek now exists
+        clear_cache_prefix("treks:")
+
         # Success Response
         return jsonify({
             "message":
@@ -996,6 +1000,10 @@ def update_trek(trek_uuid):
             ).days + 1
         # Save Changes
         db.session.commit()
+
+        # Clear cached trek listings since this Trek's details changed
+        clear_cache_prefix("treks:")
+
         # Response
         return jsonify({
             "message": "Trek updated successfully.",
