@@ -315,6 +315,38 @@ exit()
 
 Check the Celery Worker terminal — it should log that it received and executed the task within a few seconds. Then check the MailHog Web Interface (`http://localhost:8025`) for the report email.
 
+The reminder task can be triggered the same way:
+
+```python
+from tasks import send_trek_reminders
+send_trek_reminders.delay()
+exit()
+```
+
+---
+
+## Step 4: Configuring Scheduled Task Timing
+
+The daily reminder and monthly report jobs run automatically on a schedule defined in `backend/celery_app.py`, using Celery's `crontab()` scheduler:
+
+```python
+celery.conf.beat_schedule = {
+    "daily-trek-reminders": {
+        "task": "tasks.send_trek_reminders",
+        "schedule": crontab(hour=8, minute=0),
+    },
+    "monthly-trekking-report": {
+        "task": "tasks.generate_monthly_report",
+        "schedule": crontab(day_of_month=1, hour=6, minute=0),
+    },
+}
+```
+
+- `daily-trek-reminders` runs every day at 8:00 AM (server time, configured as `Asia/Kolkata` in the same file).
+- `monthly-trekking-report` runs on the 1st of every month at 6:00 AM.
+
+To change either schedule, edit the corresponding `crontab(...)` values and restart Celery Beat (`Ctrl+C`, then re-run the Step 2 command) for the change to take effect.
+
 ---
 
 # Frontend Setup

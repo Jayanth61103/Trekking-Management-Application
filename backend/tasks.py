@@ -56,7 +56,7 @@ def send_trek_reminders():
 
 # Monthly Report — sent to Admin
 @celery.task(name="tasks.generate_monthly_report")
-def send_trek_reminders():
+def generate_monthly_report():
     with flask_app.app_context():
         total_treks = Trek.query.count()
 

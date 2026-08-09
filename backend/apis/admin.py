@@ -1207,7 +1207,7 @@ def update_trekker_status(trekker_uuid):
         print("Update Trekker Status Error:", e)
         return jsonify({
             "message": "Unable to update Trekker status."
-        }), 
+        }), 500
 
 # Admin - Get All Bookings (History)
 @admin_bp.route("/bookings", methods=["GET"])

@@ -11,9 +11,6 @@
         <!-- Navigation Links -->
         <div class="nav-links">
             <RouterLink to="/">Home</RouterLink>
-            <RouterLink to="/treks">Treks</RouterLink>
-            <RouterLink to="/about">About</RouterLink>
-            <RouterLink to="/contact">Contact</RouterLink>
         </div>
 
         <!-- Right Side Authentication -->
